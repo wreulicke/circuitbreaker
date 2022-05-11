@@ -50,7 +50,7 @@ func (s *openState) failure() {
 }
 
 func (s *openState) next(config *config) state {
-	if s.openedTime.Add(s.resetTimeout).After(time.Now()) {
+	if time.Now().After(s.openedTime.Add(config.resetTimeout)) {
 		return &halfOpenState{}
 	}
 	return s
