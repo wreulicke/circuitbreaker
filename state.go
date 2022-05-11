@@ -1,11 +1,13 @@
 package circuitbreaker
 
-import "time"
+import (
+	"time"
+)
 
 const (
-	Open = iota
-	Closed
-	HalfOpen
+	StateOpen     CircuitBreakerState = "open"
+	StateClosed   CircuitBreakerState = "closed"
+	StateHalfOpen CircuitBreakerState = "half-open"
 )
 
 type config struct {
@@ -13,7 +15,7 @@ type config struct {
 	failureRate  float32
 }
 
-type CircuitBreakerState int
+type CircuitBreakerState string
 
 type state interface {
 	state() CircuitBreakerState
@@ -23,8 +25,7 @@ type state interface {
 }
 
 type openState struct {
-	openedTime   time.Time
-	resetTimeout time.Duration
+	openedTime time.Time
 }
 
 type closedState struct {
@@ -38,7 +39,7 @@ type halfOpenState struct {
 }
 
 func (*openState) state() CircuitBreakerState {
-	return Open
+	return StateOpen
 }
 
 func (s *openState) success() {
@@ -57,7 +58,7 @@ func (s *openState) next(config *config) state {
 }
 
 func (*closedState) state() CircuitBreakerState {
-	return Closed
+	return StateClosed
 }
 
 func (s *closedState) success() {
@@ -72,15 +73,14 @@ func (s *closedState) failure() {
 func (s *closedState) next(config *config) state {
 	if float32(s.failureCount)/float32(s.totalCount) > s.failureRate {
 		return &openState{
-			openedTime:   time.Now(),
-			resetTimeout: config.resetTimeout,
+			openedTime: time.Now(),
 		}
 	}
 	return s
 }
 
 func (*halfOpenState) state() CircuitBreakerState {
-	return HalfOpen
+	return StateHalfOpen
 }
 
 func (s *halfOpenState) success() {
@@ -93,8 +93,7 @@ func (s *halfOpenState) failure() {
 func (s *halfOpenState) next(config *config) state {
 	if s.failed {
 		return &openState{
-			openedTime:   time.Now(),
-			resetTimeout: config.resetTimeout,
+			openedTime: time.Now(),
 		}
 	}
 	return &closedState{
