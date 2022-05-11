@@ -1,6 +1,7 @@
 package circuitbreaker
 
 import (
+	"errors"
 	"sync"
 	"time"
 )
@@ -61,12 +62,34 @@ func (c *CircuitBreaker) failure() {
 	c.state = c.state.next(c.config)
 }
 
-func GuardBy[T any](cb *CircuitBreaker, f func() (T, error)) (T, error) {
-	r, err := f()
-	if err != nil {
-		cb.failure()
-	} else {
-		cb.success()
+func (c *CircuitBreaker) next() {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.state = c.state.next(c.config)
+}
+
+func GuardBy[T any](cb *CircuitBreaker, f func() (T, error)) (r T, err error) {
+	switch cb.state.state() {
+	case StateOpen:
+		cb.next()
+		return r, errors.New("circuit breaker opens")
+	case StateHalfOpen:
+		r, err = f()
+		if err != nil {
+			cb.failure()
+		} else {
+			cb.success()
+		}
+		return r, err
+	case StateClosed:
+		r, err = f()
+		if err != nil {
+			cb.failure()
+		} else {
+			cb.success()
+		}
+		return r, err
+	default:
+		panic("should reach here")
 	}
-	return r, err
 }
