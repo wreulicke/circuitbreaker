@@ -1,7 +1,7 @@
 ## circuit-breaker
 
-This package provides circuit breaker
-You can see concept [here](https://martinfowler.com/bliki/CircuitBreaker.html)
+This package provides circuit breaker.
+You can see the concept [here](https://martinfowler.com/bliki/CircuitBreaker.html).
 
 ## Usage
 
