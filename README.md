@@ -14,13 +14,18 @@ import (
 )
 
 func TestExample(t *testing.T) {
+	// initialize with default options
 	c := circuitbreaker.New(
-		circuitbreaker.ResetTimeout(30*time.Second),
-		circuitbreaker.FailureRate(0.5),
+		circuitbreaker.WithResetTimeout(60*time.Second),
+		circuitbreaker.WithFailureRate(0.5),
+		circuitbreaker.WithNumberOfCallsInHalfState(5),
+		circuitbreaker.WithIsIgnorable(circuitbreaker.DefaultIsIgnorable),
+		circuitbreaker.WithIsSuccessful(circuitbreaker.DefaultIsSuccessful),
 	)
 
 	circuitbreaker.GuardBy(c, func() (string, error) {
 		return "", nil
 	})
 }
+
 ```

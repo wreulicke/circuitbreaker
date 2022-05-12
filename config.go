@@ -20,7 +20,7 @@ type config struct {
 func defaultConfig() *config {
 	return &config{
 		clock:                    clock.New(),
-		resetTimeout:             60000 * time.Millisecond,
+		resetTimeout:             60 * time.Second,
 		failureRate:              0.5,
 		numberOfCallsInHalfState: 5,
 		isSuccessful:             DefaultIsSuccessful,
