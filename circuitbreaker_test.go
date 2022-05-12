@@ -10,7 +10,7 @@ import (
 )
 
 func success() (string, error) {
-	return "", nil
+	return "success", nil
 }
 
 func failure() (string, error) {
@@ -20,9 +20,12 @@ func failure() (string, error) {
 func TestCircuitBreaker(t *testing.T) {
 	c := New()
 
-	assertCalled(t, c, success)
+	r, _ := assertCalled(t, c, success)
 	assertCalled(t, c, failure)
 	assertCalled(t, c, failure)
+
+	assert.Equal(t, "success", r)
+
 	assert.Equal(t, StateOpen, c.state.state())
 }
 
@@ -83,15 +86,16 @@ func TestCircuitBreakerIgnoreError(t *testing.T) {
 	assert.Equal(t, StateHalfOpen, c.state.state())
 }
 
-func assertCalled[T any](t *testing.T, cb *CircuitBreaker, f func() (T, error)) {
+func assertCalled[T any](t *testing.T, cb *CircuitBreaker, f func() (T, error)) (r T, err error) {
 	t.Helper()
 
 	var ok bool
-	GuardBy(cb, func() (T, error) {
+	r, err = GuardBy(cb, func() (T, error) {
 		ok = true
 		return f()
 	})
 	assert.True(t, ok, "should be called")
+	return r, err
 }
 
 func assertDontCalled[T any](t *testing.T, cb *CircuitBreaker, f func() (T, error)) {
