@@ -13,10 +13,12 @@ const (
 )
 
 type config struct {
-	clock                    clock.Clock
+	clock clock.Clock
+
 	resetTimeout             time.Duration
 	failureRate              float32
 	numberOfCallsInHalfState int32
+	hooks                    []Hook
 }
 
 func defaultConfig() *config {
@@ -30,27 +32,33 @@ func defaultConfig() *config {
 
 type option func(*config)
 
-func Clock(clock clock.Clock) option {
+func WithClock(clock clock.Clock) option {
 	return func(c *config) {
 		c.clock = clock
 	}
 }
 
-func ResetTimeout(d time.Duration) option {
+func WithResetTimeout(d time.Duration) option {
 	return func(c *config) {
 		c.resetTimeout = d
 	}
 }
 
-func FailureRate(p float32) option {
+func WithFailureRate(p float32) option {
 	return func(c *config) {
 		c.failureRate = p
 	}
 }
 
-func NumberOfCallsInHalfState(n int32) option {
+func WithNumberOfCallsInHalfState(n int32) option {
 	return func(c *config) {
 		c.numberOfCallsInHalfState = n
+	}
+}
+
+func WithHook(h Hook) option {
+	return func(c *config) {
+		c.hooks = append(c.hooks, h)
 	}
 }
 
@@ -138,7 +146,7 @@ func (s *halfOpenState) next(c *CircuitBreaker) state {
 func newOpenState(c *CircuitBreaker) *openState {
 	s := &openState{}
 	c.config.clock.AfterFunc(c.config.resetTimeout, func() {
-		c.setState(&halfOpenState{})
+		c.setStateWithLock(&halfOpenState{})
 	})
 	return s
 }

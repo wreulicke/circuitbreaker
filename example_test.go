@@ -9,8 +9,8 @@ import (
 
 func TestExample(t *testing.T) {
 	c := circuitbreaker.New(
-		circuitbreaker.ResetTimeout(30*time.Second),
-		circuitbreaker.FailureRate(0.5),
+		circuitbreaker.WithResetTimeout(30*time.Second),
+		circuitbreaker.WithFailureRate(0.5),
 	)
 
 	circuitbreaker.GuardBy(c, func() (string, error) {

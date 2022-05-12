@@ -11,6 +11,8 @@ type CircuitBreaker struct {
 	state  state
 }
 
+type Hook func(old, new CircuitBreakerState)
+
 func New(opts ...option) *CircuitBreaker {
 	config := defaultConfig()
 
@@ -28,14 +30,14 @@ func (c *CircuitBreaker) success() {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	c.state.success()
-	c.state = c.state.next(c)
+	c.setState(c.state.next(c))
 }
 
 func (c *CircuitBreaker) failure() {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	c.state.failure()
-	c.state = c.state.next(c)
+	c.setState(c.state.next(c))
 }
 
 func (c *CircuitBreaker) ready() bool {
@@ -44,10 +46,19 @@ func (c *CircuitBreaker) ready() bool {
 	return c.state.state() != StateOpen
 }
 
-func (c *CircuitBreaker) setState(to state) {
+func (c *CircuitBreaker) setStateWithLock(to state) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	c.state = to
+	c.setState(to)
+}
+
+func (c *CircuitBreaker) setState(newState state) {
+	old := c.state.state()
+	new := newState.state()
+	c.state = newState
+	for _, h := range c.config.hooks {
+		h(old, new)
+	}
 }
 
 func (c *CircuitBreaker) do(f func() error) error {
