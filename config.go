@@ -12,6 +12,7 @@ type config struct {
 	resetTimeout             time.Duration
 	failureRate              float32
 	numberOfCallsInHalfState int32
+	ignoreError              func(err error) bool
 	hooks                    []Hook
 }
 
@@ -53,5 +54,11 @@ func WithNumberOfCallsInHalfState(n int32) option {
 func WithHook(h Hook) option {
 	return func(c *config) {
 		c.hooks = append(c.hooks, h)
+	}
+}
+
+func WithIgnoreError(f func(error) bool) option {
+	return func(c *config) {
+		c.ignoreError = f
 	}
 }

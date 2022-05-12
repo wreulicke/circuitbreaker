@@ -68,7 +68,7 @@ func (c *CircuitBreaker) do(f func() error) error {
 	err := f()
 	if err == nil {
 		c.success()
-	} else {
+	} else if c.config.ignoreError == nil || !c.config.ignoreError(err) {
 		c.failure()
 	}
 	return err
