@@ -28,20 +28,14 @@ func (c *CircuitBreaker) success() {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	c.state.success()
-	c.state = c.state.next(c.config)
+	c.state = c.state.next(c)
 }
 
 func (c *CircuitBreaker) failure() {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	c.state.failure()
-	c.state = c.state.next(c.config)
-}
-
-func (c *CircuitBreaker) next() {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	c.state = c.state.next(c.config)
+	c.state = c.state.next(c)
 }
 
 func (c *CircuitBreaker) ready() bool {
@@ -50,12 +44,15 @@ func (c *CircuitBreaker) ready() bool {
 	return c.state.state() != StateOpen
 }
 
+func (c *CircuitBreaker) setState(to state) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.state = to
+}
+
 func (c *CircuitBreaker) do(f func() error) error {
 	if !c.ready() {
-		c.next()
-		if !c.ready() {
-			return errors.New("circuit breaker opens")
-		}
+		return errors.New("circuit breaker opens")
 	}
 	err := f()
 	if err != nil {

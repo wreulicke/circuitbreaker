@@ -2,6 +2,8 @@ package circuitbreaker
 
 import (
 	"time"
+
+	"github.com/benbjohnson/clock"
 )
 
 const (
@@ -11,6 +13,7 @@ const (
 )
 
 type config struct {
+	clock                    clock.Clock
 	resetTimeout             time.Duration
 	failureRate              float32
 	numberOfCallsInHalfState int32
@@ -18,6 +21,7 @@ type config struct {
 
 func defaultConfig() *config {
 	return &config{
+		clock:                    clock.New(),
 		resetTimeout:             60000 * time.Millisecond,
 		failureRate:              0.5,
 		numberOfCallsInHalfState: 5,
@@ -25,6 +29,12 @@ func defaultConfig() *config {
 }
 
 type option func(*config)
+
+func Clock(clock clock.Clock) option {
+	return func(c *config) {
+		c.clock = clock
+	}
+}
 
 func ResetTimeout(d time.Duration) option {
 	return func(c *config) {
@@ -50,11 +60,12 @@ type state interface {
 	state() CircuitBreakerState
 	success()
 	failure()
-	next(config *config) state
+	next(config *CircuitBreaker) state
 }
 
 type openState struct {
 	openedTime time.Time
+	timer      *clock.Timer
 }
 
 type closedState struct {
@@ -79,8 +90,8 @@ func (s *openState) failure() {
 	panic("should not reache here")
 }
 
-func (s *openState) next(config *config) state {
-	if time.Now().After(s.openedTime.Add(config.resetTimeout)) {
+func (s *openState) next(c *CircuitBreaker) state {
+	if c.config.clock.Now().After(s.openedTime.Add(c.config.resetTimeout)) {
 		return &halfOpenState{}
 	}
 	return s
@@ -99,11 +110,9 @@ func (s *closedState) failure() {
 	s.totalCount++
 }
 
-func (s *closedState) next(config *config) state {
-	if float32(s.failureCount)/float32(s.totalCount) > config.failureRate {
-		return &openState{
-			openedTime: time.Now(),
-		}
+func (s *closedState) next(c *CircuitBreaker) state {
+	if float32(s.failureCount)/float32(s.totalCount) > c.config.failureRate {
+		return newOpenState(c)
 	}
 	return s
 }
@@ -121,13 +130,19 @@ func (s *halfOpenState) failure() {
 	s.failureCount++
 }
 
-func (s *halfOpenState) next(config *config) state {
-	if s.totalCount < config.numberOfCallsInHalfState {
+func (s *halfOpenState) next(c *CircuitBreaker) state {
+	if s.totalCount < c.config.numberOfCallsInHalfState {
 		return s
-	} else if float32(s.failureCount)/float32(s.totalCount) > config.failureRate {
-		return &openState{
-			openedTime: time.Now(),
-		}
+	} else if float32(s.failureCount)/float32(s.totalCount) > c.config.failureRate {
+		return newOpenState(c)
 	}
 	return &closedState{}
+}
+
+func newOpenState(c *CircuitBreaker) *openState {
+	s := &openState{}
+	s.timer = c.config.clock.AfterFunc(c.config.resetTimeout, func() {
+		c.setState(s.next(c))
+	})
+	return s
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/benbjohnson/clock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,19 +28,17 @@ func TestCircuitBreaker(t *testing.T) {
 
 func TestCircuitBreakerOpen(t *testing.T) {
 	c := New(ResetTimeout(100 * time.Second))
-	c.state = &openState{
-		openedTime: time.Now(),
-	}
+	c.state = newOpenState(c)
 
 	assertDontCalled(t, c, success)
 	assert.Equal(t, StateOpen, c.state.state())
 }
 
 func TestCircuitBreakerOpen_Timeout(t *testing.T) {
-	c := New(ResetTimeout(1 * time.Second))
-	c.state = &openState{
-		openedTime: time.Now().Add(-3 * time.Second),
-	}
+	mock := clock.NewMock()
+	c := New(ResetTimeout(1*time.Second), Clock(mock))
+	c.state = newOpenState(c)
+	mock.Add(3 * time.Second)
 
 	assertCalled(t, c, success)
 	assert.Equal(t, StateHalfOpen, c.state.state())
