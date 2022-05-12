@@ -1,6 +1,7 @@
 package circuitbreaker
 
 import (
+	"context"
 	"time"
 
 	"github.com/benbjohnson/clock"
@@ -67,8 +68,14 @@ func WithIsIgnorable(f func(error) bool) option {
 }
 
 func DefaultIsIgnorable(err error) bool {
-	_, ok := err.(*IgnorableError)
-	return ok
+	if _, ok := err.(*IgnorableError); ok {
+		return true
+	}
+	if err == context.Canceled {
+		return true
+	}
+
+	return false
 }
 
 func WithIsSuccessful(f func(error) bool) option {
