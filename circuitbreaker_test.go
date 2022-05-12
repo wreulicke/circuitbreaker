@@ -76,14 +76,24 @@ func TestCircuitBreakerHook(t *testing.T) {
 	assert.Equal(t, new, StateOpen)
 }
 
-func TestCircuitBreakerIgnoreError(t *testing.T) {
-	c := New(WithNumberOfCallsInHalfState(1), WithIgnoreError(func(err error) bool {
+func TestCircuitBreakerWithIsIgnorable(t *testing.T) {
+	c := New(WithNumberOfCallsInHalfState(1), WithIsIgnorable(func(err error) bool {
 		return true
 	}))
 	c.state = &halfOpenState{}
 
 	assertCalled(t, c, failure)
 	assert.Equal(t, StateHalfOpen, c.state.state())
+}
+
+func TestCircuitBreakerWithIsSuccessful(t *testing.T) {
+	c := New(WithNumberOfCallsInHalfState(1), WithIsSuccessful(func(err error) bool {
+		return true
+	}))
+	c.state = &halfOpenState{}
+
+	assertCalled(t, c, failure)
+	assert.Equal(t, StateClosed, c.state.state())
 }
 
 func assertCalled[T any](t *testing.T, cb *CircuitBreaker, f func() (T, error)) (r T, err error) {

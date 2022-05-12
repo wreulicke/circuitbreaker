@@ -12,7 +12,8 @@ type config struct {
 	resetTimeout             time.Duration
 	failureRate              float32
 	numberOfCallsInHalfState int32
-	ignoreError              func(err error) bool
+	isSuccessful             func(err error) bool
+	isIgnorable              func(err error) bool
 	hooks                    []Hook
 }
 
@@ -22,6 +23,8 @@ func defaultConfig() *config {
 		resetTimeout:             60000 * time.Millisecond,
 		failureRate:              0.5,
 		numberOfCallsInHalfState: 5,
+		isSuccessful:             DefaultIsSuccessful,
+		isIgnorable:              DefaultIsIgnorable,
 	}
 }
 
@@ -57,8 +60,24 @@ func WithHook(h Hook) option {
 	}
 }
 
-func WithIgnoreError(f func(error) bool) option {
+func WithIsIgnorable(f func(error) bool) option {
 	return func(c *config) {
-		c.ignoreError = f
+		c.isIgnorable = f
 	}
+}
+
+func DefaultIsIgnorable(err error) bool {
+	_, ok := err.(*IgnorableError)
+	return ok
+}
+
+func WithIsSuccessful(f func(error) bool) option {
+	return func(c *config) {
+		c.isSuccessful = f
+	}
+}
+
+func DefaultIsSuccessful(err error) bool {
+	_, ok := err.(*SuccessfulError)
+	return ok
 }

@@ -2,6 +2,7 @@ package circuitbreaker
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 )
 
@@ -70,9 +71,9 @@ func (c *CircuitBreaker) do(f func() error) error {
 		return ErrOpen
 	}
 	err := f()
-	if err == nil {
+	if err == nil || c.config.isSuccessful(err) {
 		c.success()
-	} else if c.config.ignoreError == nil || !c.config.ignoreError(err) {
+	} else if !c.config.isIgnorable(err) {
 		c.failure()
 	}
 	return err
@@ -84,4 +85,38 @@ func GuardBy[T any](cb *CircuitBreaker, f func() (T, error)) (r T, err error) {
 		return err
 	})
 	return r, err
+}
+
+type IgnorableError struct {
+	err error
+}
+
+func (e *IgnorableError) Error() string {
+	return fmt.Sprintf("marked as a ignorable error: %s", e.err.Error())
+}
+
+func (e *IgnorableError) Unwrap() error {
+	return e.err
+}
+
+func Ignore(err error) error {
+	return &IgnorableError{err: err}
+}
+
+type SuccessfulError struct {
+	err error
+}
+
+func (e *SuccessfulError) Error() string {
+	return fmt.Sprintf("marked as a successful error: %s", e.err.Error())
+}
+
+func (e *SuccessfulError) Unwrap() error {
+	return e.err
+}
+
+func Success(err error) error {
+	return &SuccessfulError{
+		err: err,
+	}
 }
