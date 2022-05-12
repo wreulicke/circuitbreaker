@@ -68,28 +68,36 @@ func (c *CircuitBreaker) next() {
 	c.state = c.state.next(c.config)
 }
 
-func GuardBy[T any](cb *CircuitBreaker, f func() (T, error)) (r T, err error) {
-	switch cb.state.state() {
+func (c *CircuitBreaker) do(f func() error) error {
+	switch c.state.state() {
 	case StateOpen:
-		cb.next()
-		return r, errors.New("circuit breaker opens")
+		c.next()
+		return errors.New("circuit breaker opens")
 	case StateHalfOpen:
-		r, err = f()
+		err := f()
 		if err != nil {
-			cb.failure()
+			c.failure()
 		} else {
-			cb.success()
+			c.success()
 		}
-		return r, err
+		return err
 	case StateClosed:
-		r, err = f()
+		err := f()
 		if err != nil {
-			cb.failure()
+			c.failure()
 		} else {
-			cb.success()
+			c.success()
 		}
-		return r, err
+		return err
 	default:
 		panic("should not reach here")
 	}
+}
+
+func GuardBy[T any](cb *CircuitBreaker, f func() (T, error)) (r T, err error) {
+	err = cb.do(func() error {
+		r, err = f()
+		return err
+	})
+	return r, err
 }
