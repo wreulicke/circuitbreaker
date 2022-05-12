@@ -11,8 +11,37 @@ const (
 )
 
 type config struct {
-	resetTimeout time.Duration
-	failureRate  float32
+	resetTimeout             time.Duration
+	failureRate              float32
+	numberOfCallsInHalfState int32
+}
+
+func defaultConfig() *config {
+	return &config{
+		resetTimeout:             60000 * time.Millisecond,
+		failureRate:              0.5,
+		numberOfCallsInHalfState: 5,
+	}
+}
+
+type option func(*config)
+
+func ResetTimeout(d time.Duration) option {
+	return func(c *config) {
+		c.resetTimeout = d
+	}
+}
+
+func FailureRate(p float32) option {
+	return func(c *config) {
+		c.failureRate = p
+	}
+}
+
+func NumberOfCallsInHalfState(n int32) option {
+	return func(c *config) {
+		c.numberOfCallsInHalfState = n
+	}
 }
 
 type CircuitBreakerState string
@@ -29,13 +58,13 @@ type openState struct {
 }
 
 type closedState struct {
-	failureCount int
-	totalCount   int
-	failureRate  float32
+	failureCount int32
+	totalCount   int32
 }
 
 type halfOpenState struct {
-	failed bool
+	failureCount int32
+	totalCount   int32
 }
 
 func (*openState) state() CircuitBreakerState {
@@ -71,7 +100,7 @@ func (s *closedState) failure() {
 }
 
 func (s *closedState) next(config *config) state {
-	if float32(s.failureCount)/float32(s.totalCount) > s.failureRate {
+	if float32(s.failureCount)/float32(s.totalCount) > config.failureRate {
 		return &openState{
 			openedTime: time.Now(),
 		}
@@ -84,19 +113,21 @@ func (*halfOpenState) state() CircuitBreakerState {
 }
 
 func (s *halfOpenState) success() {
+	s.totalCount++
 }
 
 func (s *halfOpenState) failure() {
-	s.failed = true
+	s.totalCount++
+	s.failureCount++
 }
 
 func (s *halfOpenState) next(config *config) state {
-	if s.failed {
+	if s.totalCount < config.numberOfCallsInHalfState {
+		return s
+	} else if float32(s.failureCount)/float32(s.totalCount) > config.failureRate {
 		return &openState{
 			openedTime: time.Now(),
 		}
 	}
-	return &closedState{
-		failureRate: config.failureRate,
-	}
+	return &closedState{}
 }

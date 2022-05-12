@@ -3,7 +3,6 @@ package circuitbreaker
 import (
 	"errors"
 	"sync"
-	"time"
 )
 
 type CircuitBreaker struct {
@@ -12,17 +11,8 @@ type CircuitBreaker struct {
 	state  state
 }
 
-func defaulConfig() *config {
-	return &config{
-		resetTimeout: 60000 * time.Millisecond,
-		failureRate:  0.5,
-	}
-}
-
-type option func(*config)
-
 func New(opts ...option) *CircuitBreaker {
-	config := defaulConfig()
+	config := defaultConfig()
 
 	for _, o := range opts {
 		o(config)
@@ -30,21 +20,7 @@ func New(opts ...option) *CircuitBreaker {
 
 	return &CircuitBreaker{
 		config: config,
-		state: &closedState{
-			failureRate: config.failureRate,
-		},
-	}
-}
-
-func ResetTimeout(d time.Duration) option {
-	return func(c *config) {
-		c.resetTimeout = d
-	}
-}
-
-func FailureRate(p float32) option {
-	return func(c *config) {
-		c.failureRate = p
+		state:  &closedState{},
 	}
 }
 
@@ -77,7 +53,9 @@ func (c *CircuitBreaker) ready() bool {
 func (c *CircuitBreaker) do(f func() error) error {
 	if !c.ready() {
 		c.next()
-		return errors.New("circuit breaker opens")
+		if !c.ready() {
+			return errors.New("circuit breaker opens")
+		}
 	}
 	err := f()
 	if err != nil {
