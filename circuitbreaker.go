@@ -5,6 +5,10 @@ import (
 	"sync"
 )
 
+var (
+	ErrOpen = errors.New("circuit breaker is open")
+)
+
 type CircuitBreaker struct {
 	lock   sync.RWMutex
 	config *config
@@ -63,7 +67,7 @@ func (c *CircuitBreaker) setState(newState state) {
 
 func (c *CircuitBreaker) do(f func() error) error {
 	if !c.ready() {
-		return errors.New("circuit breaker opens")
+		return ErrOpen
 	}
 	err := f()
 	if err == nil {
