@@ -90,6 +90,6 @@ func GuardBy[T any](cb *CircuitBreaker, f func() (T, error)) (r T, err error) {
 		}
 		return r, err
 	default:
-		panic("should reach here")
+		panic("should not reach here")
 	}
 }
