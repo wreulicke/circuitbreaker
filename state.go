@@ -64,8 +64,6 @@ type state interface {
 }
 
 type openState struct {
-	openedTime time.Time
-	timer      *clock.Timer
 }
 
 type closedState struct {
@@ -91,9 +89,7 @@ func (s *openState) failure() {
 }
 
 func (s *openState) next(c *CircuitBreaker) state {
-	if c.config.clock.Now().After(s.openedTime.Add(c.config.resetTimeout)) {
-		return &halfOpenState{}
-	}
+	// do not transition to half open here, only in timer
 	return s
 }
 
@@ -141,8 +137,8 @@ func (s *halfOpenState) next(c *CircuitBreaker) state {
 
 func newOpenState(c *CircuitBreaker) *openState {
 	s := &openState{}
-	s.timer = c.config.clock.AfterFunc(c.config.resetTimeout, func() {
-		c.setState(s.next(c))
+	c.config.clock.AfterFunc(c.config.resetTimeout, func() {
+		c.setState(&halfOpenState{})
 	})
 	return s
 }
