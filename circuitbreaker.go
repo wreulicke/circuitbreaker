@@ -66,10 +66,10 @@ func (c *CircuitBreaker) do(f func() error) error {
 		return errors.New("circuit breaker opens")
 	}
 	err := f()
-	if err != nil {
-		c.failure()
-	} else {
+	if err == nil {
 		c.success()
+	} else {
+		c.failure()
 	}
 	return err
 }
