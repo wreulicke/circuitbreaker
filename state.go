@@ -33,11 +33,11 @@ func (*openState) state() CircuitBreakerState {
 }
 
 func (s *openState) success() {
-	panic("should not reache here")
+	// nop
 }
 
 func (s *openState) failure() {
-	panic("should not reache here")
+	// nop
 }
 
 func (s *openState) next(c *CircuitBreaker) state {
